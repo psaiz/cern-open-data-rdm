@@ -1,0 +1,57 @@
+{%- extends "invenio_theme/header.html" %}
+{%- block navbar %}
+
+
+<nav class="navbar-custom">
+  <a class="navbar-brand" href="/hello">
+    <img src="{{ url_for('static', filename='img/logo_blue.png') }}" width="115" alt="Open Data CERN">
+  </a>
+
+  <ul class="link-menu">
+    {%- if not current_user.is_authenticated %}
+      <li class="item"><a href="/login">Login</a></li>
+    {%- else %}
+      <li class="ui dropdown" >
+        <span class="navbar-item">
+          <span>{{ current_user.email|truncate(31,true) }}<i class="dropdown icon"></i></span>
+        </span>
+        <div class="menu dropdown-items">
+          <div class="item"><a href="/releases/atlas">Curate ATLAS data</a></div>
+          <div class="item"><a href="/logout">Logout</a></div>
+        </div>
+      </li>
+
+      </span>
+    {%- endif %}
+    <li class="ui dropdown">
+      <span class="navbar-item">
+        <span>Help<i class="dropdown icon"></i></span>
+      </span>
+      <div class="menu dropdown-items">
+        <div class="item"><a href="https://opendata-forum.cern.ch/">Discussion forum</a></div>
+        <div class="item"><a href="/docs/cod-search-tips">Search tips</a></div>
+      </div>
+    </li>
+    <li class="ui dropdown">
+      <span class="navbar-item">
+        <span>About<i class="dropdown icon"></i></span>
+      </span>
+      <div class="menu dropdown-items">
+        <div class="item"><a href="/docs/about">CERN Open Data</a></div>
+        {% if experiments_display %} TODO: REMOVE THIS IF
+        for id, exp in experiments_display.items() if not exp.no_opendata_docs
+          <div class="item"><a href="/docs/about-{{ id }}">{{ exp.name }}</a></div>
+         endfor
+        {% endif %}
+        <div class="item"><a href="/search?type=Glossary&sort=title">Glossary</a></div>
+      </div>
+    </li>
+    <span class="menu-icon"/>
+  </ul>
+</nav>
+
+{%- endblock navbar %}
+
+{%- block breadcrumbs %}
+{%- include "cernopendata_theme/breadcrumbs.html" %}
+{%- endblock breadcrumbs %}

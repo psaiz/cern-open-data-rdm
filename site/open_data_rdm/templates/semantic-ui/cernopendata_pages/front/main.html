@@ -1,0 +1,85 @@
+<div
+  class="homepage-section main section align-items-center"
+  data-anchor="main"
+>
+  <div class="ui container container-main">
+    <div class="cod-banner row">
+      <h2>
+        <span>
+          Explore more than <span><strong>five petabytes</strong></span> <br />
+          <span class="scnd-line"
+            >of open data from particle physics!</span
+          ></span
+        >
+      </h2>
+    </div>
+    <div class="cod-search row">
+      <form
+        class="search-form container"
+        action="{{config.THEME_SEARCH_ENDPOINT}}"
+        role="search"
+      >
+        <input
+          autofocus
+          type="text"
+          class="form-control search"
+          name="q"
+          aria-label="search"
+        />
+        <div>
+          <button type="submit">Search</button>
+          <div class="cod-home-image">
+            <img
+              src="{{url_for('static', filename='img/header-image.svg')}}"
+              alt=""
+            />
+          </div>
+        </div>
+      </form>
+      <div class="search-examples row">
+        <span class="example-title">search examples:</span>
+        <a href="/search?subtype=Collision&type=Dataset">collision datasets</a>,
+        <a href="/search?keywords=education">keywords:education</a>,
+        <a href="/search?collision_energy=7TeV">energy:7TeV</a>
+      </div>
+    </div>
+
+    <div class="cod-collections row">
+      <div class="collections-col">
+        <header><span>Explore</span></header>
+        <ul>
+          <li><a href="/search?type=Dataset">datasets</a></li>
+          <li><a href="/search?type=Software">software</a></li>
+          <li><a href="/search?type=Environment">environments</a></li>
+          <li><a href="/search?type=Documentation">documentation</a></li>
+        </ul>
+      </div>
+      <div class="collections-col">
+        <header><span>Focus on</span></header>
+        <ul>
+          {% if experiments_display %} TODO: REMOVE THIS IF
+          {% for exp in experiments_display.values() %}
+            <li><a href="/search?experiment={{ exp.name }}">{{ exp.name }}</a></li>
+          {% endfor %}
+          {%endif %}
+          <li><a href="/search?keywords=datascience">Data Science</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="cod-scroll row">
+      <div class="icon">
+        <a href="#lva">
+          <img
+            src="/static/img/mouse-scrolling.png"
+            alt=""
+          />
+          <span>Get started</span>
+          <img
+            src="/static/img/mouse-scrolling.png"
+            alt=""
+          />
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

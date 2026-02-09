@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cernopendata-rdm"
+version = "0.1.0"
+description = "CERN OpenData customizations for Invenio RDM"
+requires-python = ">=3.12"
+
+dependencies = [
+  "invenio-app-rdm[opensearch2]",
+]
+
+[tool.setuptools]
+packages = ["open_data_rdm"]
+package-dir = { "open_data_rdm" = "site/open_data_rdm" }
+
+[tool.setuptools.package-data]
+open_data_rdm = [
+  "templates/**/*",
+  "assets/**/*",
+]

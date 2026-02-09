@@ -1,0 +1,630 @@
+{%- extends config.BASE_TEMPLATE %}
+
+
+{%- block page_header %}
+{% include 'cernopendata_theme/header_index.html' %}
+{%- endblock page_header %}
+
+
+{%- block page_body %}
+<div class="ui container">
+    <div class="ui center aligned segment">
+
+        <h2 class="ui header">
+            Welcome to the curation pages
+            <div class="sub header">Experiment: {{ experiment|upper }}</div>
+        </h2>
+
+        <a href="/releases/{{experiment}}"
+           class="ui small basic button">
+            <i class="arrow left icon"></i>
+            Back to releases
+        </a>
+        <div class="ui hidden divider"></div>
+
+        <h2 class="ui header">
+            Release #{{ release.id }}
+        </h2>
+
+        <div class="ui segment">
+            <div class="ui grid middle aligned">
+                <div class="six wide column middle aligned">
+                    <strong>Status</strong>
+                    <div class="ui large label
+    {% if release.status == 'DRAFT' %}grey
+    {% elif release.status == 'READY' %}blue
+    {% elif release.status == 'DEPLOYED' %}teal
+    {% elif release.status == 'PUBLISHED' %}green
+    {% endif %}
+  ">
+                        {{ release.status }}
+                    </div>
+                </div>
+                <div class="ten wide column">
+                {% set actions = [
+                    {
+                    "name": "deploy",
+                    "icon": "eye",
+                    "color": "teal",
+                    "enabled_when": "READY",
+                    },
+                    {
+                    "name": "rollback",
+                    "icon": "undo",
+                    "color": "red",
+                    "enabled_when": "DEPLOYED",
+                    },
+                    {
+                    "name": "publish",
+                    "icon": "upload",
+                    "color": "green",
+                    "enabled_when": "DEPLOYED",
+                    },
+                    {
+                    "name": "export",
+                    "icon": "download",
+                    "color": "grey",
+                    "enabled_when": "PUBLISHED",
+                    },
+                    {
+                    "name": "delete",
+                    "icon": "trash",
+                    "color": "red",
+                    "enabled_when": None,
+                    }
+                ] %}
+                    <div class="ui secondary menu right aligned">
+                        {% for action in actions %}
+                        {% set disabled = action.enabled_when and release.status != action.enabled_when %}
+                        <div class="item">
+                            <form method="post"
+                                  action="/releases/{{ experiment }}/{{ release.id }}/{{ action.name }}"
+                                  style="display:inline">
+                                <div
+                                        {% if disabled %}
+                                        data-tooltip="Release must be {{ action.enabled_when }} to {{ action.name }}"
+                                        data-position="top center"
+                                        {% endif %}
+                                >
+                                    <button class="ui {{ action.color }} button {% if disabled %}disabled{% endif %}">
+                                        <i class="{{ action.icon }} icon"></i>
+                                        {{ action.name | capitalize }}
+                                    </button>
+                                </div>
+
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <h3 >Details</h3>
+
+        {% set stats = [
+        {"label": "Records", "value": release.num_records},
+        {"label": "File indices", "value": release.num_file_indices},
+        {"label": "Files", "value": release.num_files},
+        {"label": "Documents", "value": release.num_docs},
+        {"label": "Glossaries", "value": release.num_glossaries}
+        ] %}
+
+        <div class="ui segment five statistics">
+            {% for stat in stats %}
+            <div class="statistic">
+                <div class="value">{{ stat.value }}</div>
+                <div class="label">{{ stat.label }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="ui segment">
+            <div class="ui horizontal list">
+                <div class="item">
+                    <i class="calendar plus icon"></i>
+                    <strong>Created</strong>:
+                    {{ release.created_at.strftime("%Y-%m-%d %H:%M") }}
+                    by {{ release.created_by.email if release.created_by else "-" }}
+                </div>
+                <div class="item">
+                    <i class="history icon"></i>
+                    <strong>Updated</strong>:
+                    {{ release.updated_at.strftime("%Y-%m-%d %H:%M") }}
+                    by {{ release.updated_by.email if release.updated_by else "-" }}
+                </div>
+            </div>
+        </div>
+
+        <div class="ui hidden divider"></div>
+        {% set checks = [
+        {
+        "label": "RECID",
+        "tooltip": "The recids can only be generated if they are not there already",
+        "actions": [
+        {"label": "Generate RECID", "valid": release.valid_recid }
+        ]
+        },
+        {
+        "label": "DOI",
+        "tooltip": "The DOI can only be generated if they are not there already",
+        "actions": [
+        {"label": "Generate DOI", "valid": release.valid_doi }
+        ]
+        },
+        {
+        "label": "File information",
+        "tooltip": "The file information is already there.",
+        "actions": [
+        {"label": "Expand files", "valid": release.expanded_files },
+        {"label": "Generate file metadata", "valid": release.valid_files }
+        ]
+        },
+        {
+        "label": "Usual metadata",
+        "tooltip": "The usual fields are there",
+        "actions": [
+        {"label": "Generate record metadata", "valid": release.valid_common_metadata,
+            "name":  "bulk_records/apply",
+            "data": {"updates" : {
+                "set": {
+                    "experiment": [ experiment|upper ],
+                    "publisher": "CERN Open Data Portal",
+                    "license": {"attribution": "CC0-1.0"},
+                    "date_published": current_year|string
+                    }
+                   }
+        } }
+        ]
+        }
+        ] %}
+
+        {% macro action_name(label) -%}
+        {{ label|lower|replace(' ', '_') }}
+        {%- endmacro %}
+
+        <div class="ui segment grid">
+            {% for check in checks %}
+            <div class="row">
+                <div class="four wide column">Valid {{ check.label }}</div>
+                <div class="one wide column">
+                    {# Show green if all actions valid, red otherwise #}
+                    {% set all_valid = check.actions | selectattr('valid') | list | length == check.actions | length %}
+                    <i class="{{ 'check green' if all_valid else 'close red' }} icon"></i>
+                </div>
+                {% set disabled = check.valid %}
+                <div class="eleven wide column">
+                    <div class="ui small buttons">
+
+                    {% for action in check.actions %}
+                        {% set disabled = action.valid %}
+                        {% set action_name = action.name if action.name is defined else action.label | lower | replace(' ', '_') %}
+
+                        <div
+                                {% if disabled %}
+                                data-tooltip="{{ check.tooltip }}"
+                                data-position="top center"
+                                {% endif %}
+                        >
+
+
+                            <form method="post"
+                                  action="/releases/{{ experiment }}/{{ release.id }}/{{ action_name }}">
+                                {% if action.data is defined %}
+                                    {% for key, value in action.data.items() %}
+                                      <input type="hidden" name="{{ key }}" value='{{ value | tojson }}'>
+                                    {% endfor %}
+                                {% endif %}
+                                <button class="ui small primary button {% if disabled %}disabled{% endif %}"
+                                        {% if disabled %}disabled{% endif %}>
+                                    <i class="magic icon"></i>
+                                    {{ action.label }}
+                                </button>
+                            </form>
+
+                        </div>
+                     {% endfor %}
+                   </div>
+                </div>
+            </div>
+            {% endfor %}
+            <div class="row">
+                <div class="four wide column">Errors</div>
+                <div class="one wide column"><i class="{{ 'check green' if release.num_errors == 0 else 'close red' }} icon"></i></div>
+                    {% if release.errors %}
+                    <div class="ui eleven wide column negative message">
+                        <div class="header">Showing {{ release.errors|length }} of {{ release.num_errors }} errors:</div>
+                        {% for item in release.errors %}
+                            <li>
+                                <strong>{{ item }}</strong>:
+                            </li>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+            </div>
+        </div>
+
+
+        <div class="ui styled fluid accordion">
+            <div class="title">
+                <i class="dropdown icon"></i>
+                Records
+
+            </div>
+            <div class="content">
+                <pre class="no-glossary">{{ release.records | tojson(indent=2) }}</pre>
+            </div>
+            {% set edit_disabled = release.status == 'PUBLISHED' or release.status == 'DEPLOYED' %}
+            {% set bulk_records_disabled = edit_disabled or (release.records | length) < 2 %}
+            <button class="ui blue button {% if edit_disabled %}disabled{% endif %}" id="edit-records-btn" {% if edit_disabled %}disabled{% endif %}>
+                <i class="edit icon"></i>
+                Edit Records
+            </button>
+            <button
+                    class="ui teal button {% if bulk_records_disabled %}disabled{% endif %}"
+                    id="bulk-edit-btn"
+                    {% if bulk_records_disabled %}disabled{% endif %}
+            >
+                <i class="tasks icon"></i>
+                Bulk edit
+            </button>
+            <div class="ui modal" id="edit-records-modal">
+                <i class="close icon"></i>
+                <div class="header">Edit Records JSON</div>
+                <div class="content">
+                    <form id="edit-records-form" method="post"
+                          action="/releases/{{experiment}}/{{release.id}}/update_records">
+            <textarea class="no-glossary" name="records_json" id="records-json-textarea" rows="15" style="width:100%">
+{{ release.records | tojson(indent=2) }}
+            </textarea>
+                        <div class="actions">
+                            <button type="submit" class="ui primary button">Save</button>
+                            <button type="button" class="ui button cancel">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% set max_records_to_show = 10 %}
+            <div class="ui action input">
+                <select id="record-select" class="ui dropdown {% if not edit_disabled %}disabled{% endif %}" {% if not edit_disabled %}disabled{% endif %}>
+                    {% for record in release.records[:max_records_to_show] %}
+                    <option value="{{ record.recid }}">{{ record.title or record.recid }}</option>
+                    {% endfor %}
+                </select>
+                <button class="ui primary button {% if not edit_disabled %}disabled{% endif %}" {% if not edit_disabled %}disabled{% endif %} id="see-record-btn">
+                    <i class="eye icon"></i> See Record
+                </button>
+            </div>
+
+            <div class="ui modal" id="bulk-edit-modal">
+                <i class="close icon"></i>
+                <div class="header">Bulk edit records</div>
+
+                <div class="content">
+
+                    <form class="ui form" id="bulk-edit-form">
+                        <table class="ui very compact table" id="bulk-edit-table">
+                            <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Field</th>
+                                <th>Value (JSON)</th>
+                                <th></th>
+                            </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+
+                        <button type="button" class="ui tiny button" id="add-bulk-row">
+                            <i class="plus icon"></i> Add field
+                        </button>
+                    </form>
+                    <div class="ui clearing segment">
+                        <div class="ui right floated buttons">
+                            <button class="ui button" type="button" id="bulk-preview-btn">
+                                Preview
+                            </button>
+                            <button class="ui primary disabled button" type="button" id="bulk-apply-btn">
+                                Apply
+                            </button>
+                            <button class="ui cancel button">Cancel</button>
+                        </div>
+                    </div>
+
+                    <div class="ui divider"></div>
+
+                    <div id="bulk-preview" class="ui segment" style="display:none">
+                        <h4 class="ui header">Preview changes (first 10 records)</h4>
+                        <div id="bulk-diff-container"></div>
+                    </div>
+
+                </div>
+
+
+            </div>
+            <div class="title">
+                <i class="dropdown icon"></i>
+                Documents
+            </div>
+            <div class="content">
+                <pre>{{ release.documents | tojson(indent=2) }}</pre>
+            </div>
+
+            <div class="title">
+                <i class="dropdown icon"></i>
+                Glossary
+            </div>
+            <div class="content">
+                <pre>{{ release.glossary | tojson(indent=2) }}</pre>
+            </div>
+        </div>
+            </div>
+
+</div>
+{%- endblock %}
+
+{% block javascript %}
+    {{ super() }}
+    <script>
+        $('.ui.accordion').accordion();
+        document.getElementById('see-record-btn').addEventListener('click', function() {
+            const recid = document.getElementById('record-select').value;
+            window.location.href = '/record/' + recid;
+        });
+
+        document.getElementById("edit-records-btn").addEventListener("click", () => {
+              $("#edit-records-modal").modal('show');
+        });
+
+        function renderDiffs(diffs) {
+            const container = $('#bulk-diff-container');
+            container.empty();
+
+            if (!diffs || !diffs.length) {
+                container.append('<div class="ui message">No changes detected</div>');
+                return;
+            }
+
+            diffs.forEach(item => {
+                const card = $('<div class="ui fluid card"></div>');
+                const content = $('<div class="content"></div>');
+
+                content.append(`<div class="header">Record ${item.index + 1} (${item.recid || 'no recid'})</div>`);
+                content.append(renderDiffObject(item.diff));
+
+                card.append(content);
+                container.append(card);
+            });
+        }
+
+        function renderDiffObject(diff) {
+            const list = $('<div class="ui list"></div>');
+
+            if (diff.values_changed) {
+                Object.entries(diff.values_changed).forEach(([path, change]) => {
+                    list.append(`
+                      <div class="item">
+                        🟡 <strong>${path}</strong><br>
+                        <span class="removed">- ${JSON.stringify(change.old_value)}</span><br>
+                        <span class="added">+ ${JSON.stringify(change.new_value)}</span>
+                      </div>
+                    `);
+                });
+            }
+
+            if (diff.type_changes) {
+                Object.entries(diff.type_changes).forEach(([path, change]) => {
+                    list.append(`
+                        <div class="item">
+                            🟠 <strong>${path}</strong><br>
+                            <span class="removed">- ${JSON.stringify(change.old_value)} (${change.old_type})</span><br>
+                            <span class="added">+ ${JSON.stringify(change.new_value)} (${change.new_type})</span>
+                        </div>
+                    `);
+                });
+            }
+
+            if (diff.dictionary_item_added) {
+                diff.dictionary_item_added.forEach(path => {
+                    list.append(`<div class="item">🟢 <strong>${path}</strong> added</div>`);
+                });
+            }
+
+            if (diff.dictionary_item_removed) {
+                diff.dictionary_item_removed.forEach(path => {
+                    list.append(`<div class="item">🔴 <strong>${path}</strong> removed</div>`);
+                });
+            }
+
+            return list;
+        }
+
+        let bulkHasChanges = false;
+        let bulkPreviewDone = false;
+
+        (function () {
+
+            const modal = $('#bulk-edit-modal');
+            const tableBody = $('#bulk-edit-table tbody');
+            const previewBox = $('#bulk-preview');
+
+            /* ------------------------
+             * Helpers
+             * ------------------------ */
+
+            function updateButtons() {
+                $('#bulk-preview-btn').toggleClass(
+                    'disabled',
+                    !bulkHasChanges || bulkPreviewDone
+                );
+
+                $('#bulk-apply-btn').toggleClass(
+                    'disabled',
+                    !bulkPreviewDone
+                );
+            }
+
+            function invalidatePreview() {
+                bulkHasChanges = true;
+                bulkPreviewDone = false;
+                previewBox.hide();
+                updateButtons();
+            }
+
+            function collectBulkOperations() {
+                const setOps = {};
+                const deleteOps = [];
+
+                $('#bulk-edit-table tbody tr').each(function () {
+                    const mode = $(this).find('.bulk-mode').val();
+                    const key = $(this).find('.bulk-key').val().trim();
+                    const rawValue = $(this).find('.bulk-value').val().trim();
+
+                    if (!key) return;
+
+                    if (mode === 'delete') {
+                        deleteOps.push(key);
+                        return;
+                    }
+
+                    // mode === 'set'
+                    if (!rawValue) {
+                        throw new Error(`Missing value for key "${key}"`);
+                    }
+
+                    try {
+                        setOps[key] = JSON.parse(rawValue);
+                    } catch (e) {
+                        throw new Error(`Invalid JSON for key "${key}"`);
+                    }
+                });
+
+                return { set: setOps, delete: deleteOps };
+            }
+
+            /* ------------------------
+             * Modal lifecycle
+             * ------------------------ */
+
+            $('#bulk-edit-btn').on('click', () => modal.modal('show'));
+
+            modal.modal({
+                onShow: () => {
+                    bulkHasChanges = false;
+                    bulkPreviewDone = false;
+                    previewBox.hide();
+                    updateButtons();
+                }
+            });
+
+            /* ------------------------
+             * Row management
+             * ------------------------ */
+
+            $('#add-bulk-row').on('click', () => {
+                tableBody.append(`
+                    <tr>
+                        <td><select class="ui compact dropdown bulk-mode">
+                            <option value="set">Set / update</option>
+                            <option value="delete">Delete field</option>
+                        </select></td>
+                        <td><input type="text" class="bulk-key" placeholder="field name"></td>
+                        <td><textarea class="bulk-value" rows="1" placeholder='JSON value'></textarea></td>
+                        <td><i class="trash icon link remove-row"></i></td>
+                    </tr>
+                `);
+                invalidatePreview();
+            });
+
+            tableBody.on('click', '.remove-row', function () {
+                $(this).closest('tr').remove();
+                invalidatePreview();
+            });
+
+            tableBody.on('input', '.bulk-key, .bulk-value', invalidatePreview);
+
+            /* ------------------------
+             * Preview
+             * ------------------------ */
+
+            $('#bulk-preview-btn').on('click', async function () {
+                if ($(this).hasClass('disabled')) return;
+
+                let updates;
+                try {
+                    updates = collectBulkOperations();
+                } catch (e) {
+                    alert(e.message);
+                    return;
+                }
+
+                const res = await fetch(
+                    `/releases/{{ experiment }}/{{ release.id }}/bulk_records/preview`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ updates })
+                    }
+                );
+
+                if (!res.ok) {
+                    alert('Preview failed');
+                    return;
+                }
+
+                const data = await res.json();
+                renderDiffs(data.diffs);
+
+                previewBox.show();
+                bulkPreviewDone = true;
+                updateButtons();
+            });
+
+            /* ------------------------
+             * Apply
+             * ------------------------ */
+
+            $('#bulk-apply-btn').on('click', async function () {
+                if ($(this).hasClass('disabled')) return;
+
+                let updates;
+                try {
+                    updates = collectBulkOperations();
+                } catch (e) {
+                    alert(e.message);
+                    return;
+                }
+
+                const res = await fetch(
+                    `/releases/{{ experiment }}/{{ release.id }}/bulk_records/apply`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ updates })
+                    }
+                );
+
+                if (!res.ok) {
+                    alert('Apply failed');
+                    return;
+                }
+
+                location.reload();
+            });
+
+        })();
+        $('#bulk-edit-table').on('change', '.bulk-mode', function () {
+          const row = $(this).closest('tr');
+          const value = row.find('.bulk-value');
+
+          if (this.value === 'delete') {
+            value.prop('disabled', true)
+                 .addClass('disabled')
+                 .val('');
+          } else {
+            value.prop('disabled', false)
+                 .removeClass('disabled');
+          }
+
+          invalidatePreview();
+        });
+    </script>
+{%- endblock %}
